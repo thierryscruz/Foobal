@@ -11,7 +11,9 @@ from src.routes.user import user_bp
 from src.routes.futebol import futebol_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+
+# Configurações para produção e desenvolvimento
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 
 # Configurar CORS para permitir requisições do frontend
 CORS(app)
@@ -19,11 +21,24 @@ CORS(app)
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(futebol_bp, url_prefix='/api/futebol')
 
-# uncomment if you need to use database
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+# Configuração do banco de dados
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Para PostgreSQL no Render
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Para desenvolvimento local
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+
 with app.app_context():
+    # Criar diretório do banco se não existir (apenas para SQLite local)
+    if not database_url:
+        os.makedirs(os.path.join(os.path.dirname(__file__), 'database'), exist_ok=True)
     db.create_all()
 
 @app.route('/', defaults={'path': ''})
@@ -44,4 +59,7 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug)
+

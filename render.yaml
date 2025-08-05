@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: futebol-system
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT src.main:app"
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        generateValue: true
+

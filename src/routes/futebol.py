@@ -153,6 +153,53 @@ def sortear_times(sessao_id):
     except Exception as e:
         return jsonify({'erro': str(e)}), 500
 
+@futebol_bp.route('/sessoes/por-data/<data_sessao>', methods=['GET'])
+@cross_origin()
+def get_sessao_por_data(data_sessao):
+    """Obter sessão por data específica"""
+    try:
+        data_obj = datetime.strptime(data_sessao, '%Y-%m-%d').date()
+        sessao = SessaoFutebol.query.filter_by(data_sessao=data_obj).first()
+        
+        if sessao:
+            return jsonify(sessao.to_dict())
+        else:
+            # Retorna estrutura vazia para a data
+            return jsonify({
+                'data_sessao': data_sessao,
+                'jogadores': [{'id': i+1, 'nome': '', 'nivel': 2} for i in range(20)],
+                'resultado': None
+            })
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 400
+
+@futebol_bp.route('/sessoes/salvar-automatico', methods=['POST'])
+@cross_origin()
+def salvar_automatico():
+    """Salvar ou atualizar sessão automaticamente"""
+    data = request.json
+    
+    try:
+        data_obj = datetime.strptime(data['data_sessao'], '%Y-%m-%d').date()
+        jogadores = data['jogadores']
+        
+        # Buscar sessão existente para a data
+        sessao = SessaoFutebol.query.filter_by(data_sessao=data_obj).first()
+        
+        if sessao:
+            # Atualizar sessão existente
+            sessao.set_jogadores(jogadores)
+            sessao.updated_at = datetime.utcnow()
+        else:
+            # Criar nova sessão
+            sessao = SessaoFutebol(data_sessao=data_obj, jogadores=jogadores)
+            db.session.add(sessao)
+        
+        db.session.commit()
+        return jsonify(sessao.to_dict()), 200
+    except Exception as e:
+        return jsonify({'erro': str(e)}), 400
+
 @futebol_bp.route('/sortear-rapido', methods=['POST'])
 @cross_origin()
 def sortear_rapido():
